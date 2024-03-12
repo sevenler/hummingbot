@@ -86,6 +86,9 @@ class ExecutorHandlerBase:
             executor_data = executor.to_json()
             executor_data["order_level"] = order_level.level_id
             executor_data["controller_name"] = self.controller.config.strategy_name
+            executor_data["open_order_id"] = executor.open_order.order_idg
+            executor_data["close_order_id"] = executor.close_order.order_id
+            executor_data["take_profit_order_id"] = executor.take_profit_order.order_id
             MarketsRecorder.get_instance().store_executor(executor_data)
             self.level_executors[order_level.level_id] = None
 

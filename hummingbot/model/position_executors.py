@@ -43,6 +43,9 @@ class PositionExecutors(HummingbotBase):
     time_limit_order_type = Column(Text, nullable=False)
     leverage = Column(Integer, nullable=False)
     controller_name = Column(Text, nullable=True)
+    open_order_id = Column(Text, nullable=True)
+    close_order_id = Column(Text, nullable=True)
+    take_profit_order_id = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"PositionExecutor(timestamp={self.timestamp}, controller_name='{self.controller_name}', " \
@@ -101,4 +104,7 @@ class PositionExecutors(HummingbotBase):
             "time_limit_order_type": self.time_limit_order_type,
             "leverage": self.leverage,
             "controller_name": self.controller_name,
+            "open_order_id": self.open_order_id,
+            "close_order_id": self.close_order_id,
+            "take_profit_order_id": self.take_profit_order_id,
         }
