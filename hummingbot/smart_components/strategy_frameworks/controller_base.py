@@ -2,13 +2,12 @@ from abc import ABC
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel
-
 from hummingbot.data_feed.candles_feed.candles_factory import CandlesConfig, CandlesFactory
 from hummingbot.smart_components.strategy_frameworks.data_types import OrderLevel
+from hummingbot.smart_components.strategy_frameworks.reloadable_base import ReloadableBase
 
 
-class ControllerConfigBase(BaseModel):
+class ControllerConfigBase(ReloadableBase):
     exchange: str
     trading_pair: str
     strategy_name: str
@@ -35,7 +34,7 @@ class ControllerBase(ABC):
         Initialize the ControllerBase.
 
         :param config: Configuration for the controller.
-        :param mode: Mode of the controller (LIVE or other modes).
+        :param mode: Mode of the controller (LIVE or other modes).g
         :param excluded_parameters: List of parameters to exclude from status formatting.
         """
         self.config = config
