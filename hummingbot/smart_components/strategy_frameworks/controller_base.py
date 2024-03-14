@@ -34,7 +34,7 @@ class ControllerBase(ABC):
         Initialize the ControllerBase.
 
         :param config: Configuration for the controller.
-        :param mode: Mode of the controller (LIVE or other modes).g
+        :param mode: Mode of the controller (LIVE or other modes).
         :param excluded_parameters: List of parameters to exclude from status formatting.
         """
         self.config = config
