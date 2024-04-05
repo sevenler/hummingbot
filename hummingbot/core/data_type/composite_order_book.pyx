@@ -70,7 +70,7 @@ cdef class CompositeOrderBook(OrderBook):
                     break
             cpp_bids.push_back(OrderBookEntry(price, amount, timestamp))
 
-        self._traded_order_book.c_apply_diffs(cpp_bids, cpp_asks, timestamp)
+        self._traded_order_book.c_apply_diffs(cpp_bids, cpp_asks, timestamp, timestamp)
 
     def original_bid_entries(self) -> Iterator[OrderBookRow]:
         return super().bid_entries()
@@ -125,7 +125,7 @@ cdef class CompositeOrderBook(OrderBook):
 
             inc(order_it)
 
-        self._traded_order_book.c_apply_diffs(cpp_bids_changes, cpp_asks_changes, self._last_diff_uid)
+        self._traded_order_book.c_apply_diffs(cpp_bids_changes, cpp_asks_changes, self._last_diff_uid, self._last_timestamp)
 
     def ask_entries(self) -> Iterator[OrderBookRow]:
         cdef:
@@ -173,7 +173,7 @@ cdef class CompositeOrderBook(OrderBook):
 
             inc(order_it)
 
-        self._traded_order_book.c_apply_diffs(cpp_bids_changes, cpp_asks_changes, self._last_diff_uid)
+        self._traded_order_book.c_apply_diffs(cpp_bids_changes, cpp_asks_changes, self._last_diff_uid, self._last_timestamp)
 
     cdef double c_get_price(self, bint is_buy) except? -1:
         cdef:

@@ -50,13 +50,14 @@ cdef class OrderBook(PubSub):
         super().__init__()
         self._snapshot_uid = 0
         self._last_diff_uid = 0
+        self._last_timestamp = 0
         self._best_bid = self._best_ask = float("NaN")
         self._last_trade_price = float("NaN")
         self._last_applied_trade = -1000.0
         self._last_trade_price_rest_updated = -1000
         self._dex = dex
 
-    cdef c_apply_diffs(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id):
+    cdef c_apply_diffs(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id, int64_t timestamp):
         cdef:
             set[OrderBookEntry].iterator bid_book_end = self._bid_book.end()
             set[OrderBookEntry].iterator ask_book_end = self._ask_book.end()
@@ -95,8 +96,9 @@ cdef class OrderBook(PubSub):
 
         # Remember the last diff update ID.
         self._last_diff_uid = update_id
+        self._last_timestamp = timestamp
 
-    cdef c_apply_snapshot(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id):
+    cdef c_apply_snapshot(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id, int64_t timestamp):
         cdef:
             double best_bid_price = float("NaN")
             double best_ask_price = float("NaN")
@@ -135,6 +137,7 @@ cdef class OrderBook(PubSub):
 
         # Remember the last snapshot update ID.
         self._snapshot_uid = update_id
+        self._last_timestamp = timestamp
 
     cdef c_apply_trade(self, object trade_event):
         self._last_trade_price = trade_event.price
@@ -170,6 +173,10 @@ cdef class OrderBook(PubSub):
         return self._last_diff_uid
 
     @property
+    def last_timestamp(self) -> int:
+        return self._last_timestamp
+
+    @property
     def snapshot(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         bids_rows = list(self.bid_entries())
         asks_rows = list(self.ask_entries())
@@ -177,7 +184,7 @@ cdef class OrderBook(PubSub):
         asks_df = pd.DataFrame(data=asks_rows, columns=OrderBookRow._fields, dtype="float64")
         return bids_df, asks_df
 
-    def apply_diffs(self, bids: List[OrderBookRow], asks: List[OrderBookRow], update_id: int):
+    def apply_diffs(self, bids: List[OrderBookRow], asks: List[OrderBookRow], update_id: int, timestamp: int):
         cdef:
             vector[OrderBookEntry] cpp_bids
             vector[OrderBookEntry] cpp_asks
@@ -185,9 +192,9 @@ cdef class OrderBook(PubSub):
             cpp_bids.push_back(OrderBookEntry(row.price, row.amount, row.update_id))
         for row in asks:
             cpp_asks.push_back(OrderBookEntry(row.price, row.amount, row.update_id))
-        self.c_apply_diffs(cpp_bids, cpp_asks, update_id)
+        self.c_apply_diffs(cpp_bids, cpp_asks, update_id, timestamp)
 
-    def apply_snapshot(self, bids: List[OrderBookRow], asks: List[OrderBookRow], update_id: int):
+    def apply_snapshot(self, bids: List[OrderBookRow], asks: List[OrderBookRow], update_id: int, timestamp: int):
         cdef:
             vector[OrderBookEntry] cpp_bids
             vector[OrderBookEntry] cpp_asks
@@ -195,29 +202,29 @@ cdef class OrderBook(PubSub):
             cpp_bids.push_back(OrderBookEntry(row.price, row.amount, row.update_id))
         for row in asks:
             cpp_asks.push_back(OrderBookEntry(row.price, row.amount, row.update_id))
-        self.c_apply_snapshot(cpp_bids, cpp_asks, update_id)
+        self.c_apply_snapshot(cpp_bids, cpp_asks, update_id, timestamp)
 
     def apply_trade(self, trade: OrderBookTradeEvent):
         self.c_apply_trade(trade)
 
-    def apply_pandas_diffs(self, bids_df: pd.DataFrame, asks_df: pd.DataFrame):
+    def apply_pandas_diffs(self, bids_df: pd.DataFrame, asks_df: pd.DataFrame, timestamp: int):
         """
         The diffs data frame must have 3 columns, [price, amount, update_id], and a UNIX timestamp index.
 
         All columns are of double type.
         """
-        self.apply_numpy_diffs(bids_df.values, asks_df.values)
+        self.apply_numpy_diffs(bids_df.values, asks_df.values, timestamp)
 
-    def apply_numpy_diffs(self, bids_array: np.ndarray, asks_array: np.ndarray):
+    def apply_numpy_diffs(self, bids_array: np.ndarray, asks_array: np.ndarray, timestamp: int):
         """
         The diffs data frame must have 3 columns, [price, amount, update_id].
         All columns are of double type.
         """
-        self.c_apply_numpy_diffs(bids_array, asks_array)
+        self.c_apply_numpy_diffs(bids_array, asks_array, timestamp)
 
     cdef c_apply_numpy_diffs(self,
                              np.ndarray[np.float64_t, ndim=2] bids_array,
-                             np.ndarray[np.float64_t, ndim=2] asks_array):
+                             np.ndarray[np.float64_t, ndim=2] asks_array, int64_t timestamp):
         """
         The diffs data frame must have 3 columns, [price, amount, update_id].
         All columns are of double type.
@@ -233,18 +240,18 @@ cdef class OrderBook(PubSub):
         for row in asks_array:
             cpp_asks.push_back(OrderBookEntry(row[0], row[1], <int64_t>(row[2])))
             last_update_id = max(last_update_id, <int64_t>row[2])
-        self.c_apply_diffs(cpp_bids, cpp_asks, last_update_id)
+        self.c_apply_diffs(cpp_bids, cpp_asks, last_update_id, timestamp)
 
-    def apply_numpy_snapshot(self, bids_array: np.ndarray, asks_array: np.ndarray):
+    def apply_numpy_snapshot(self, bids_array: np.ndarray, asks_array: np.ndarray, timestamp: int):
         """
         The diffs data frame must have 3 columns, [price, amount, update_id].
         All columns are of double type.
         """
-        self.c_apply_numpy_snapshot(bids_array, asks_array)
+        self.c_apply_numpy_snapshot(bids_array, asks_array, timestamp)
 
     cdef c_apply_numpy_snapshot(self,
                                 np.ndarray[np.float64_t, ndim=2] bids_array,
-                                np.ndarray[np.float64_t, ndim=2] asks_array):
+                                np.ndarray[np.float64_t, ndim=2] asks_array, int64_t timestamp):
         """
         The diffs data frame must have 3 columns, [price, amount, update_id].
         All columns are of double type.
@@ -260,7 +267,7 @@ cdef class OrderBook(PubSub):
         for row in asks_array:
             cpp_asks.push_back(OrderBookEntry(row[0], row[1], <int64_t>(row[2])))
             last_update_id = max(last_update_id, <int64_t>row[2])
-        self.c_apply_snapshot(cpp_bids, cpp_asks, last_update_id)
+        self.c_apply_snapshot(cpp_bids, cpp_asks, last_update_id, timestamp)
 
     def bid_entries(self) -> Iterator[OrderBookRow]:
         cdef:
@@ -478,6 +485,6 @@ cdef class OrderBook(PubSub):
     def restore_from_snapshot_and_diffs(self, snapshot: OrderBookMessage, diffs: List[OrderBookMessage]):
         replay_position = bisect.bisect_right(diffs, snapshot)
         replay_diffs = diffs[replay_position:]
-        self.apply_snapshot(snapshot.bids, snapshot.asks, snapshot.update_id)
+        self.apply_snapshot(snapshot.bids, snapshot.asks, snapshot.update_id, snapshot.timestamp)
         for diff in replay_diffs:
-            self.apply_diffs(diff.bids, diff.asks, diff.update_id)
+            self.apply_diffs(diff.bids, diff.asks, diff.update_id, snapshot.timestamp)

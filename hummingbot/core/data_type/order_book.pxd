@@ -14,6 +14,7 @@ cdef class OrderBook(PubSub):
     cdef set[OrderBookEntry] _ask_book
     cdef int64_t _snapshot_uid
     cdef int64_t _last_diff_uid
+    cdef int64_t _last_timestamp
     cdef double _best_bid
     cdef double _best_ask
     cdef double _last_trade_price
@@ -21,15 +22,15 @@ cdef class OrderBook(PubSub):
     cdef double _last_trade_price_rest_updated
     cdef bint _dex
 
-    cdef c_apply_diffs(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id)
-    cdef c_apply_snapshot(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id)
+    cdef c_apply_diffs(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id, int64_t timestamp)
+    cdef c_apply_snapshot(self, vector[OrderBookEntry] bids, vector[OrderBookEntry] asks, int64_t update_id, int64_t timestamp)
     cdef c_apply_trade(self, object trade_event)
     cdef c_apply_numpy_diffs(self,
                              np.ndarray[np.float64_t, ndim=2] bids_array,
-                             np.ndarray[np.float64_t, ndim=2] asks_array)
+                             np.ndarray[np.float64_t, ndim=2] asks_array, int64_t timestamp)
     cdef c_apply_numpy_snapshot(self,
                                 np.ndarray[np.float64_t, ndim=2] bids_array,
-                                np.ndarray[np.float64_t, ndim=2] asks_array)
+                                np.ndarray[np.float64_t, ndim=2] asks_array, int64_t timestamp)
     cdef double c_get_price(self, bint is_buy) except? -1
     cdef OrderBookQueryResult c_get_price_for_volume(self, bint is_buy, double volume)
     cdef OrderBookQueryResult c_get_price_for_quote_volume(self, bint is_buy, double quote_volume)

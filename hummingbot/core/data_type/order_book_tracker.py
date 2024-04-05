@@ -272,7 +272,7 @@ class OrderBookTracker:
                     message = await message_queue.get()
 
                 if message.type is OrderBookMessageType.DIFF:
-                    order_book.apply_diffs(message.bids, message.asks, message.update_id)
+                    order_book.apply_diffs(message.bids, message.asks, message.update_id, message.timestamp * 1000)
                     past_diffs_window.append(message)
                     diff_messages_accepted += 1
 
@@ -284,7 +284,7 @@ class OrderBookTracker:
                     last_message_timestamp = now
                 elif message.type is OrderBookMessageType.SNAPSHOT:
                     past_diffs: List[OrderBookMessage] = list(past_diffs_window)
-                    order_book.restore_from_snapshot_and_diffs(message, past_diffs)
+                    order_book.restore_from_snapshot_and_diffs(message, past_diffs, message.timestamp * 1000)
             except asyncio.CancelledError:
                 raise
             except Exception:
